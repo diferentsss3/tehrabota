@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="Космический сборщик — казуальная аркада: управляй кораблём, собирай звёзды, уклоняйся от астероидов.">
+    <title>Cosmic Swarm — космический сборщик</title>
+    <!-- Подключаем SDK Яндекс Игр -->
+    <script src="https://yandex.ru/games/sdk/v2/sdk.js"></script>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #0a0f1c, #02050c);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            max-width: 100%;
+        }
+
+        .canvas-wrapper {
+            border-radius: 48px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            padding: 10px;
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 32px;
+            cursor: none;
+            box-shadow: 0 0 0 2px rgba(255,200,100,0.2);
+        }
+
+        .stats-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .stat-card {
+            background: rgba(12, 20, 35, 0.75);
+            backdrop-filter: blur(12px);
+            border-radius: 48px;
+            padding: 8px 24px;
+            border: 1px solid rgba(255, 210, 120, 0.4);
+            text-align: center;
+            min-width: 110px;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: #bdd4ff;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FFE6B0, #FFA559);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            line-height: 1;
+        }
+
+        .combo-card {
+            background: linear-gradient(135deg, #ffa53e20, #ff5e6e30);
+            border-color: #ffb347;
+        }
+
+        .bonus-bar {
+            display: flex;
+            gap: 12px;
+            background: #0a0f1c99;
+            border-radius: 60px;
+            padding: 6px 18px;
+            backdrop-filter: blur(8px);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .bonus-item {
+            background: #1f2a3e;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #f0f3fc;
+        }
+
+        .btn-modern {
+            background: linear-gradient(135deg, rgba(30, 45, 75, 0.9), rgba(15, 25, 45, 0.95));
+            border: 1px solid rgba(255, 200, 120, 0.4);
+            border-radius: 60px;
+            padding: 10px 28px;
+            font-weight: 600;
+            font-size: 1rem;
+            font-family: inherit;
+            color: #f0f3fc;
+            backdrop-filter: blur(8px);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-modern:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #3e5a8f, #1f2f50);
+            border-color: #ffbc6e;
+        }
+
+        .btn-modern:active {
+            transform: translateY(2px);
+        }
+
+        .footer-hint {
+            font-size: 0.7rem;
+            color: #7e8aa8;
+            text-align: center;
+        }
+
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: inherit;
+        }
+
+        .tutorial-card {
+            background: #0e172cee;
+            border-radius: 48px;
+            max-width: 480px;
+            width: 90%;
+            padding: 28px 24px;
+            border: 1px solid #ffbc6e;
+            box-shadow: 0 30px 50px black;
+            color: white;
+            text-align: center;
+        }
+
+        .tutorial-card h3 {
+            font-size: 1.8rem;
+            margin: 0 0 12px;
+            background: linear-gradient(135deg, #FFE6B0, #FFA559);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .tutorial-step-text {
+            margin: 20px 0;
+            font-size: 1.1rem;
+            line-height: 1.4;
+        }
+
+        .tutorial-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 700px) {
+            .stat-value { font-size: 1.5rem; }
+            .bonus-item { font-size: 0.75rem; padding: 4px 10px; }
+            .btn-modern { padding: 8px 20px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="canvas-wrapper">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+    </div>
+    <div class="stats-panel">
+        <div class="stat-card"><div class="stat-label">✨ ЗВЁЗДЫ</div><div class="stat-value" id="scoreDisplay">0</div></div>
+        <div class="stat-card"><div class="stat-label">🏆 РЕКОРД</div><div class="stat-value" id="bestDisplay">0</div></div>
+        <div class="stat-card combo-card"><div class="stat-label">⚡ КОМБО x</div><div class="stat-value" id="comboDisplay">1</div></div>
+    </div>
+    <div class="bonus-bar" id="bonusStatus">
+        <div class="bonus-item">🛡️ щит —</div>
+        <div class="bonus-item">🧲 магнит —</div>
+        <div class="bonus-item">⏳ замедление —</div>
+    </div>
+    <button class="btn-modern" id="restartButton">🔄 НОВАЯ ИГРА</button>
+    <div class="footer-hint">🎮 мышь / палец — двигай корабль | ✨ комбо растёт при быстром сборе</div>
+</div>
+
+<div id="tutorialOverlay" class="tutorial-overlay hidden">
+    <div class="tutorial-card">
+        <h3>🚀 КОСМИЧЕСКИЙ СБОРЩИК</h3>
+        <div class="tutorial-step-text" id="tutorialText">✨ Собирай звёзды, избегай астероидов!</div>
+        <div class="tutorial-buttons">
+            <button class="btn-modern" id="tutorialNextBtn">ДАЛЕЕ</button>
+            <button class="btn-modern" id="tutorialSkipBtn">ПРОПУСТИТЬ</button>
+        </div>
+        <div style="margin-top: 12px; font-size: 0.8rem;" id="tutorialStepIndicator">1 / 4</div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ----------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const CW = 800, CH = 500;
+        canvas.width = CW; canvas.height = CH;
+        
+        let gameActive = true;
+        let score = 0;
+        let highScore = 0;
+        let combo = 1;
+        let comboDecayTimer = 0;
+        
+        const PLAYER_RADIUS = 16;
+        let playerX = CW/2;
+        let invincible = false;
+        let shieldTimer = 0;
+        let magnetActive = false;
+        let magnetTimer = 0;
+        let slowMotionActive = false;
+        let slowMotionTimer = 0;
+        let globalSpeedFactor = 1.0;
+        
+        let objects = [];
+        let particles = [];
+        
+        let baseSpawnDelay = 700;
+        let spawnDelay = 700;
+        let lastSpawnTimeSec = 0;
+        let baseSpeed = 2.4;
+        
+        // DOM
+        const scoreSpan = document.getElementById('scoreDisplay');
+        const bestSpan = document.getElementById('bestDisplay');
+        const comboSpan = document.getElementById('comboDisplay');
+        const restartBtn = document.getElementById('restartButton');
+        const bonusDiv = document.getElementById('bonusStatus');
+        
+        // ---------- SDK Яндекс Игр ----------
+        let ysdk = null;
+        let isGameFocused = true; // флаг фокуса для звука
+        
+        async function initYandexSDK() {
+            try {
+                if (typeof YaGames === 'undefined') {
+                    console.warn('SDK Яндекс Игр не загружен, игра работает в локальном режиме');
+                    return;
+                }
+                ysdk = await YaGames.init();
+                // Получаем данные игрока (для отображения рекорда)
+                const player = await ysdk.getPlayer({ scopes: false });
+                if (player) {
+                    // Загружаем сохранённый рекорд из облака
+                    try {
+                        const cloudData = await player.getData(['highscore']);
+                        if (cloudData && cloudData.highscore && !isNaN(parseInt(cloudData.highscore))) {
+                            highScore = parseInt(cloudData.highscore);
+                            bestSpan.innerText = highScore;
+                        }
+                    } catch(e) { /* нет сохранённых данных */ }
+                }
+                // Настраиваем паузу при потере фокуса
+                ysdk.on('pause', () => {
+                    isGameFocused = false;
+                    if (audioCtx) audioCtx.suspend();
+                });
+                ysdk.on('resume', () => {
+                    isGameFocused = true;
+                    if (audioCtx && gameActive) audioCtx.resume();
+                });
+                // Показываем рекламу по желанию (необязательно)
+                // Готово
+                console.log('SDK инициализирован');
+            } catch(e) {
+                console.error('Ошибка инициализации SDK:', e);
+            }
+        }
+        
+        // Сохранение рекорда через SDK
+        async function saveHighScoreToCloud(scoreValue) {
+            if (!ysdk) return;
+            try {
+                const player = await ysdk.getPlayer({ scopes: false });
+                if (player) {
+                    await player.setData({ highscore: scoreValue });
+                    console.log('Рекорд сохранён в облако:', scoreValue);
+                }
+            } catch(e) {
+                console.warn('Не удалось сохранить рекорд в облако:', e);
+            }
+        }
+        
+        // ---------- ЗВУКИ ----------
+        let audioCtx = null;
+        function initAudio() {
+            if(audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!isGameFocused && audioCtx) audioCtx.suspend();
+        }
+        function playTone(freq, duration, type='sine', volume=0.2) {
+            if(!audioCtx || !isGameFocused) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = type;
+            gain.gain.setValueAtTime(volume, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.start();
+            osc.stop(now + duration);
+        }
+        function playCollectSound(value) {
+            initAudio();
+            if(audioCtx.state === 'suspended' && isGameFocused) audioCtx.resume();
+            let freq = 600 + (value * 40);
+            if(freq > 1000) freq = 980;
+            playTone(freq, 0.12, 'sine', 0.15);
+        }
+        function playPowerupSound() {
+            initAudio();
+            if(audioCtx.state === 'suspended' && isGameFocused) audioCtx.resume();
+            playTone(880, 0.2, 'triangle', 0.2);
+            setTimeout(() => playTone(660, 0.2, 'triangle', 0.15), 80);
+        }
+        function playCrashSound() {
+            initAudio();
+            if(audioCtx.state === 'suspended' && isGameFocused) audioCtx.resume();
+            playTone(220, 0.5, 'sawtooth', 0.25);
+            setTimeout(() => playTone(180, 0.6, 'sawtooth', 0.2), 100);
+        }
+        function playGameOverSound() {
+            initAudio();
+            if(audioCtx.state === 'suspended' && isGameFocused) audioCtx.resume();
+            playTone(150, 0.9, 'sawtooth', 0.3);
+        }
+        
+        // ---------- ИГРОВАЯ ЛОГИКА ----------
+        function getStarValue(subType) {
+            if(subType === 'gold') return 5;
+            if(subType === 'blue') return 3;
+            return 1;
+        }
+        
+        function addScoreWithCombo(basePoints) {
+            let gained = basePoints * combo;
+            score += gained;
+            scoreSpan.innerText = score;
+            if(score > highScore) {
+                highScore = score;
+                bestSpan.innerText = highScore;
+                // Сохраняем рекорд локально и в облако (через SDK)
+                try { localStorage.setItem('cosmicHighScoreV2', highScore); } catch(e) {}
+                saveHighScoreToCloud(highScore);
+            }
+            if(combo < 8) combo++;
+            comboSpan.innerText = combo;
+            comboDecayTimer = 1.2;
+            playCollectSound(basePoints);
+        }
+        
+        function applyPowerup(subType) {
+            if(subType === 'shield') { shieldTimer = 5.0; invincible = true; }
+            else if(subType === 'magnet') { magnetTimer = 5.5; magnetActive = true; }
+            else if(subType === 'slow') { slowMotionTimer = 4.5; slowMotionActive = true; globalSpeedFactor = 0.6; }
+            playPowerupSound();
+            addParticles(playerX, CH-35, '#ffcc88', 12);
+        }
+        
+        function addParticles(x,y,color,count=6) {
+            for(let i=0;i<count;i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5)*4,
+                    vy: (Math.random() - 0.5)*4 - 2,
+                    life: 0.7,
+                    alpha: 0.9,
+                    color: color,
+                    size: Math.random()*4+2
+                });
+            }
+        }
+        
+        function spawnObject(nowTime) {
+            if(!gameActive) return;
+            let isPowerup = Math.random() < 0.12;
+            if(isPowerup) {
+                let powerType = Math.floor(Math.random() * 3);
+                let subType = powerType===0?'shield':(powerType===1?'magnet':'slow');
+                objects.push({
+                    x: Math.random()*(CW-28)+14,
+                    y: -14,
+                    radius: 14,
+                    type: 'powerup',
+                    subType: subType,
+                    speed: (baseSpeed + Math.random()*0.8) * globalSpeedFactor
+                });
+                return;
+            }
+            const isStar = Math.random() < 0.6;
+            if(isStar) {
+                let r = Math.random();
+                let starSub = r<0.7?'normal':(r<0.85?'blue':'gold');
+                let radius = starSub==='gold'?13:(starSub==='blue'?12:10);
+                objects.push({
+                    x: Math.random()*(CW - radius*2) + radius,
+                    y: -radius,
+                    radius: radius,
+                    type: 'star',
+                    subType: starSub,
+                    speed: (baseSpeed + Math.random()*1.0) * globalSpeedFactor
+                });
+            } else {
+                let fast = Math.random() < 0.3;
+                let radius = fast?12:15;
+                objects.push({
+                    x: Math.random()*(CW - radius*2) + radius,
+                    y: -radius,
+                    radius: radius,
+                    type: 'asteroid',
+                    subType: fast?'fast':'normal',
+                    speed: (baseSpeed + (fast?2.2:0.5) + Math.random()*1.2) * globalSpeedFactor
+                });
+            }
+        }
+        
+        function updateGame(deltaSec) {
+            if(!gameActive) return;
+            
+            for(let obj of objects) {
+                let spd = obj.speed;
+                if(slowMotionActive && obj.type !== 'powerup') spd = obj.speed * 0.7;
+                obj.y += spd * (deltaSec * 60);
+            }
+            
+            objects = objects.filter(obj => {
+                if(obj.y - obj.radius > CH + 60) {
+                    if(obj.type === 'star' && gameActive) {
+                        combo = 1;
+                        comboSpan.innerText = combo;
+                        comboDecayTimer = 0;
+                    }
+                    return false;
+                }
+                return true;
+            });
+            
+            if(magnetActive) {
+                const py = CH - 35;
+                for(let obj of objects) {
+                    if(obj.type === 'star') {
+                        let dx = playerX - obj.x;
+                        let dy = py - obj.y;
+                        let dist = Math.hypot(dx, dy);
+                        if(dist < 100 && dist > 5) {
+                            let angle = Math.atan2(dy, dx);
+                            let pull = 6.5 * deltaSec * 60;
+                            obj.x += Math.cos(angle) * pull;
+                            obj.y += Math.sin(angle) * pull;
+                        }
+                    }
+                }
+            }
+            
+            const playerY = CH - 35;
+            for(let i=0; i<objects.length; i++) {
+                const obj = objects[i];
+                const dist = Math.hypot(playerX - obj.x, playerY - obj.y);
+                if(dist < PLAYER_RADIUS + obj.radius) {
+                    if(obj.type === 'star') {
+                        let pts = getStarValue(obj.subType);
+                        addScoreWithCombo(pts);
+                        let partColor = obj.subType==='gold'?'#FFD966':(obj.subType==='blue'?'#88AAFF':'#FFEEAA');
+                        addParticles(obj.x, obj.y, partColor, 8);
+                        objects.splice(i,1);
+                        i--;
+                    } else if(obj.type === 'powerup') {
+                        applyPowerup(obj.subType);
+                        addParticles(obj.x, obj.y, '#E0FF88', 10);
+                        objects.splice(i,1);
+                        i--;
+                    } else if(obj.type === 'asteroid') {
+                        if(invincible) {
+                            addParticles(obj.x, obj.y, '#88aaff', 10);
+                            objects.splice(i,1);
+                            i--;
+                        } else {
+                            gameActive = false;
+                            playCrashSound();
+                            playGameOverSound();
+                            addParticles(playerX, playerY, '#ff5555', 18);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if(comboDecayTimer > 0) {
+                comboDecayTimer -= deltaSec;
+                if(comboDecayTimer <= 0 && gameActive) {
+                    combo = 1;
+                    comboSpan.innerText = combo;
+                }
+            }
+        }
+        
+        function updateBonuses(deltaSec) {
+            if(shieldTimer > 0) {
+                shieldTimer -= deltaSec;
+                if(shieldTimer <= 0) invincible = false;
+            } else invincible = false;
+            
+            if(magnetTimer > 0) {
+                magnetTimer -= deltaSec;
+                if(magnetTimer <= 0) magnetActive = false;
+            }
+            
+            if(slowMotionTimer > 0) {
+                slowMotionTimer -= deltaSec;
+                if(slowMotionTimer <= 0) {
+                    slowMotionActive = false;
+                    globalSpeedFactor = 1.0;
+                }
+            }
+            if(slowMotionActive) globalSpeedFactor = 0.6;
+            else globalSpeedFactor = 1.0;
+            
+            bonusDiv.innerHTML = `
+                <div class="bonus-item">🛡️ щит ${shieldTimer > 0 ? Math.ceil(shieldTimer)+'с' : '—'}</div>
+                <div class="bonus-item">🧲 магнит ${magnetTimer > 0 ? Math.ceil(magnetTimer)+'с' : '—'}</div>
+                <div class="bonus-item">⏳ замедление ${slowMotionTimer > 0 ? Math.ceil(slowMotionTimer)+'с' : '—'}</div>
+            `;
+        }
+        
+        function updateDifficulty() {
+            let dynamicDelay = 680 - Math.floor(score / 10) * 6;
+            if(dynamicDelay < 340) dynamicDelay = 340;
+            spawnDelay = dynamicDelay;
+            baseSpeed = 2.3 + Math.floor(score / 25) * 0.2;
+            if(baseSpeed > 5.5) baseSpeed = 5.5;
+        }
+        
+        // ---------- ОТРИСОВКА ----------
+        function drawBackground() {
+            const grad = ctx.createLinearGradient(0, 0, 0, CH);
+            grad.addColorStop(0, '#03061a');
+            grad.addColorStop(0.7, '#121b2f');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, CW, CH);
+            for(let i=0;i<200;i++) {
+                if(i%3===0) continue;
+                ctx.fillStyle = `rgba(255,240,200,${0.3+Math.sin(i)*0.2})`;
+                ctx.beginPath();
+                ctx.arc((i*131)%CW, (i*257)%CH, 1.2, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        
+        function drawPlayer() {
+            const py = CH-35;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#3ec1ff';
+            ctx.beginPath();
+            ctx.moveTo(playerX, py-16);
+            ctx.lineTo(playerX-15, py+5);
+            ctx.lineTo(playerX+15, py+5);
+            ctx.fillStyle = '#5ee0fa';
+            ctx.fill();
+            ctx.fillStyle = '#2c7be5';
+            ctx.beginPath();
+            ctx.moveTo(playerX, py-12);
+            ctx.lineTo(playerX-10, py+3);
+            ctx.lineTo(playerX+10, py+3);
+            ctx.fill();
+            ctx.fillStyle = '#ffaa44';
+            ctx.beginPath();
+            ctx.moveTo(playerX-7, py+4);
+            ctx.lineTo(playerX, py+12);
+            ctx.lineTo(playerX+7, py+4);
+            ctx.fill();
+            if(invincible) {
+                ctx.beginPath();
+                ctx.arc(playerX, py, PLAYER_RADIUS+3, 0, Math.PI*2);
+                ctx.strokeStyle = '#aaffdd';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([5,8]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawStarObj(x,y,r,subType) {
+            let mainColor = subType==='gold'?'#FFC107':(subType==='blue'?'#5D9BFF':'#FFE28A');
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#FFDFA0';
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI*2);
+            ctx.fillStyle = mainColor;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawAsteroidObj(x,y,r,fast) {
+            ctx.fillStyle = fast?'#A5673F':'#7E5E44';
+            ctx.beginPath();
+            ctx.ellipse(x, y, r, r*0.9, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#4F3A2A';
+            for(let i=0;i<5;i++) {
+                let offX = Math.sin(i*1.8)*(r-3);
+                let offY = Math.cos(i*2.2)*(r-3);
+                ctx.beginPath();
+                ctx.arc(x+offX, y+offY, r*0.2, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        
+        function drawPowerup(x,y,type) {
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#6ad4ff';
+            ctx.beginPath();
+            ctx.arc(x, y, 12, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px monospace';
+            if(type === 'shield') ctx.fillText('🛡️', x-9, y+6);
+            else if(type === 'magnet') ctx.fillText('🧲', x-8, y+6);
+            else ctx.fillText('⏳', x-8, y+6);
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawObjects() {
+            for(let obj of objects) {
+                if(obj.type === 'star') drawStarObj(obj.x, obj.y, obj.radius, obj.subType);
+                else if(obj.type === 'asteroid') drawAsteroidObj(obj.x, obj.y, obj.radius, obj.subType === 'fast');
+                else drawPowerup(obj.x, obj.y, obj.subType);
+            }
+        }
+        
+        function drawParticles() {
+            for(let i=0;i<particles.length;i++) {
+                let p = particles[i];
+                ctx.globalAlpha = p.alpha * p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+                ctx.fill();
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.03;
+                if(p.life <= 0) particles.splice(i,1), i--;
+            }
+            ctx.globalAlpha = 1;
+        }
+        
+        function drawUI() {
+            ctx.font = 'bold 18px "Segoe UI"';
+            ctx.fillStyle = '#FFE8C5';
+            ctx.fillText(`⭐ множитель x${combo}`, 20, 45);
+            if(slowMotionActive) {
+                ctx.fillStyle = '#AFFFAF';
+                ctx.fillText('🐢 ЗАМЕДЛЕНИЕ', CW-140, 45);
+            }
+            if(!gameActive) {
+                ctx.font = '800 38px system-ui';
+                ctx.fillStyle = '#FF8866';
+                ctx.shadowColor = '#7a0000';
+                ctx.fillText('GAME OVER', CW/2-115, CH/2-40);
+                ctx.font = '18px system-ui';
+                ctx.fillStyle = '#ccc';
+                ctx.fillText('нажми НОВАЯ ИГРА', CW/2-95, CH/2+30);
+            }
+        }
+        
+        function drawMagnetRange() {
+            if(magnetActive) {
+                ctx.beginPath();
+                ctx.arc(playerX, CH-35, 95, 0, Math.PI*2);
+                ctx.strokeStyle = '#FFD96680';
+                ctx.lineWidth = 1.8;
+                ctx.setLineDash([6,10]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        function render() {
+            drawBackground();
+            drawObjects();
+            drawPlayer();
+            drawMagnetRange();
+            drawParticles();
+            drawUI();
+        }
+        
+        // ---------- УПРАВЛЕНИЕ ----------
+        function handleMove(clientX) {
+            if(!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CW / rect.width;
+            let canvasX = (clientX - rect.left) * scaleX;
+            canvasX = Math.min(Math.max(canvasX, PLAYER_RADIUS), CW - PLAYER_RADIUS);
+            playerX = canvasX;
+        }
+        
+        function onMouseMove(e) { e.preventDefault(); handleMove(e.clientX); }
+        function onTouchMove(e) { e.preventDefault(); if(e.touches.length) handleMove(e.touches[0].clientX); }
+        function onTouchStart(e) { e.preventDefault(); if(e.touches.length) handleMove(e.touches[0].clientX); }
+        
+        // ---------- РЕСТАРТ ----------
+        function restartGame() {
+            gameActive = true;
+            score = 0;
+            combo = 1;
+            objects = [];
+            particles = [];
+            invincible = false;
+            shieldTimer = 0;
+            magnetActive = false;
+            magnetTimer = 0;
+            slowMotionActive = false;
+            slowMotionTimer = 0;
+            globalSpeedFactor = 1.0;
+            scoreSpan.innerText = "0";
+            comboSpan.innerText = "1";
+            playerX = CW/2;
+            updateDifficulty();
+            lastSpawnTimeSec = performance.now() / 1000;
+            for(let i=0;i<3;i++) spawnObject(performance.now());
+            if(audioCtx && audioCtx.state === 'suspended' && isGameFocused) audioCtx.resume();
+        }
+        
+        // ---------- ОБУЧЕНИЕ ----------
+        const tutorialOverlay = document.getElementById('tutorialOverlay');
+        const tutorialText = document.getElementById('tutorialText');
+        const tutorialNextBtn = document.getElementById('tutorialNextBtn');
+        const tutorialSkipBtn = document.getElementById('tutorialSkipBtn');
+        const stepIndicator = document.getElementById('tutorialStepIndicator');
+        let tutorialStep = 0;
+        const tutorialMessages = [
+            "✨ Собирай звёзды, чтобы набрать очки! Чем выше комбо, тем больше множитель.",
+            "💥 Избегай астероидов — они разрушают корабль! 🛡️ Подбирай щиты, магниты и замедление.",
+            "🔥 Комбо растёт при быстром сборе звёзд. Если долго не собирать — множитель сбросится.",
+            "🏆 Играй, улучшай свой рекорд и возвращайся! Удачи, капитан!"
+        ];
+        function showTutorialStep() {
+            tutorialText.innerText = tutorialMessages[tutorialStep];
+            stepIndicator.innerText = `${tutorialStep+1} / ${tutorialMessages.length}`;
+            if(tutorialStep === tutorialMessages.length-1) tutorialNextBtn.innerText = "СТАРТ";
+            else tutorialNextBtn.innerText = "ДАЛЕЕ";
+        }
+        function nextTutorial() {
+            if(tutorialStep + 1 < tutorialMessages.length) {
+                tutorialStep++;
+                showTutorialStep();
+            } else {
+                tutorialOverlay.classList.add('hidden');
+                localStorage.setItem('tutorialCompleted', 'true');
+                if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                restartGame();
+            }
+        }
+        function skipTutorial() {
+            tutorialOverlay.classList.add('hidden');
+            localStorage.setItem('tutorialCompleted', 'true');
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            restartGame();
+        }
+        tutorialNextBtn.addEventListener('click', nextTutorial);
+        tutorialSkipBtn.addEventListener('click', skipTutorial);
+        
+        // ---------- ЦИКЛ ИГРЫ ----------
+        let lastFrameTime = 0;
+        function gameLoop(nowMs) {
+            let nowSec = nowMs / 1000;
+            let delta = Math.min(0.033, nowSec - (lastFrameTime || nowSec));
+            if(delta <= 0) { lastFrameTime = nowSec; requestAnimationFrame(gameLoop); return; }
+            lastFrameTime = nowSec;
+            
+            if(gameActive && isGameFocused) {
+                updateGame(delta);
+                updateBonuses(delta);
+                updateDifficulty();
+                if(lastSpawnTimeSec === 0) lastSpawnTimeSec = nowSec;
+                if(nowSec - lastSpawnTimeSec >= spawnDelay/1000) {
+                    spawnObject(nowMs);
+                    lastSpawnTimeSec = nowSec;
+                }
+            }
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ---------- ИНИЦИАЛИЗАЦИЯ ----------
+        async function init() {
+            // Загружаем локальный рекорд как запасной
+            try {
+                let savedBest = localStorage.getItem('cosmicHighScoreV2');
+                if(savedBest && !isNaN(parseInt(savedBest))) {
+                    highScore = parseInt(savedBest);
+                    bestSpan.innerText = highScore;
+                }
+            } catch(e) {}
+            
+            await initYandexSDK(); // инициализация SDK
+            
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+            canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            restartBtn.addEventListener('click', () => { restartGame(); });
+            
+            if(localStorage.getItem('tutorialCompleted') !== 'true') {
+                tutorialOverlay.classList.remove('hidden');
+                tutorialStep = 0;
+                showTutorialStep();
+            } else {
+                restartGame();
+            }
+            requestAnimationFrame(gameLoop);
+            canvas.addEventListener('click', () => { if(audioCtx && audioCtx.state === 'suspended' && isGameFocused) audioCtx.resume(); });
+        }
+        
+        init();
+    })();
+</script>
+</body>
+</html>
